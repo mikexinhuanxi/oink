@@ -42,3 +42,19 @@ window isolation, and observer removal. Hidden AppKit windows do not reset on ev
 style/title change, so the test deliberately sets the measured stale frames before
 calling the real native update; it does not claim those operations always trigger
 the reset on every macOS version.
+
+Build-103 acceptance: the packaged backend/CLI passed isolated IPC. The actual
+isolated WebView went through native fullscreen exit and a minimize/raise sequence;
+the reporter confirmed the controls remained inside the window afterwards. The
+fixed user-Applications copy was then updated to build 103, with unchanged pairing
+and frontend layout. After explicit consent, only its Accessibility and ListenEvent
+records were reset and its device-control grant re-added. The installed UI showed
+build 103, shared mouse/keyboard, and the existing Windows peer online.
+
+When replacing a bundle at the same path, System Settings' open panel can retain
+a file reference to the old bundle after it has moved to Trash, even while the
+visible column still says Applications. Verify the selected file URL. Restarting
+System Settings cleared this cached reference; the exact installed application URL
+was then selected. Do not grant a cached Trash copy or modify/resign an app after
+its permission registration. Temporary signing can require registration again on
+future builds.
