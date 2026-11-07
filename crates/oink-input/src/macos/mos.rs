@@ -56,7 +56,18 @@ pub(super) fn init() {
 
 fn refresh() {
     let next = objc2::rc::autoreleasepool(|_| read_snapshot());
-    *snapshot().write().unwrap_or_else(|e| e.into_inner()) = next;
+    {
+        let mut current = snapshot().write().unwrap_or_else(|e| e.into_inner());
+        if current.running != next.running || current.fallback != next.fallback {
+            tracing::info!(
+                active = next.running,
+                reverse_horizontal = next.fallback.x,
+                reverse_vertical = next.fallback.y,
+                "Mos scroll compatibility updated"
+            );
+        }
+        *current = next;
+    }
     // App enumeration and preferences IO never run on the event tap. Main
     // queues are serviced by both the desktop shell and the agent's run loop.
     super::main_queue::run_after(Duration::from_millis(500), refresh);
