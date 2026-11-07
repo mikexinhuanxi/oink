@@ -253,6 +253,7 @@ export function SettingsPage({ open, platform, api, capsIme, query, jump, onActi
             case 'confirmQuit':
             case 'escStop':
             case 'scrollInvert':
+            case 'crossSystemScrollInvert':
             case 'forwardWheelByLines':
             case 'forwardInjectedInput':
             case 'takeForegroundOnLeave':

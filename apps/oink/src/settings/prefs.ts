@@ -47,6 +47,7 @@ export interface Prefs {
     allowFnMapping: boolean;
     pollLimit: '125' | 'none';
     scrollInvert: boolean;
+    crossSystemScrollInvert: boolean;
     forwardWheelByLines: boolean;
     pointerGain: number;
     keepAwake: boolean;
@@ -83,6 +84,7 @@ export const DEFAULT_PREFS: Prefs = {
     allowFnMapping: false,
     pollLimit: '125',
     scrollInvert: false,
+    crossSystemScrollInvert: false,
     forwardWheelByLines: true,
     pointerGain: 1,
     keepAwake: true,

@@ -188,6 +188,87 @@ fn mac_local_rewrite_pairs_keys_and_keeps_shortcuts_physical() {
 }
 
 #[test]
+fn source_cross_system_wheel_override_leaves_local_and_touchpad_direction_intact() {
+    for by_lines in [false, true] {
+        let mut source = router(Os::MacOS);
+        let mut target = Router::new(
+            RouterConfig::new(
+                oink_foundation::session::Boot {
+                    device_id: SOURCE,
+                    nonce: [2; 16],
+                },
+                "Windows target",
+                Os::Windows,
+            ),
+            Arc::new(crate::SimpleLayout::new()),
+        );
+        let mut transform = InputTransform::initial("macos");
+        transform.windows.reverse_wheel = true;
+        source.set_input_transforms([(ME, transform.clone())].into());
+        target.set_input_transforms([(ME, transform)].into());
+        let wheel = CapturedEvent {
+            time_us: 1,
+            physical: true,
+            source: SourceKind::Mouse,
+            cursor: None,
+            event: InputEvent::Scroll {
+                dx: 2.,
+                dy: -3.,
+                unit: ScrollUnit::Line,
+                phase: ScrollPhase::None,
+                wheel_steps: Some(Point::new(1., -1.)),
+            },
+        };
+        // A Mac-local utility may reverse this event later. The cross-system
+        // compensation must not rewrite it at the source's own session tap.
+        assert_eq!(source.on_local_event(&wheel, 1), Disposition::Pass);
+        assert_eq!(source.local_rewrite(), None);
+        source.test_connect(SOURCE, 0);
+        source.holder = SOURCE;
+        source.claim = SOURCE;
+        source.cfg.settings.forward_wheel_by_lines = by_lines;
+        source.out.clear();
+        assert_eq!(source.on_local_event(&wheel, 2), Disposition::Swallow);
+        let (dx, dy, unit, steps) = source
+            .out
+            .iter()
+            .find_map(|out| match out {
+                Output::Send {
+                    msg:
+                        Message::Input(InputMsg::Scroll {
+                            dx,
+                            dy,
+                            unit,
+                            wheel_steps,
+                            ..
+                        }),
+                    ..
+                } => Some((*dx, *dy, *unit, *wheel_steps)),
+                _ => None,
+            })
+            .unwrap();
+        target.out.clear();
+        target.inject_scroll(ME, SourceKind::Mouse, dx, dy, unit, ScrollPhase::None, steps);
+        assert!(target.out.iter().any(|out| matches!(out,
+            Output::Inject(InjectEvent::Scroll { dx, dy, .. }) if *dx < 0. && *dy > 0.
+        )));
+        target.out.clear();
+        target.inject_scroll(
+            ME,
+            SourceKind::Touchpad,
+            2.,
+            -3.,
+            ScrollAmount::Lines,
+            ScrollPhase::None,
+            None,
+        );
+        assert!(target.out.iter().any(|out| matches!(out,
+            Output::Inject(InjectEvent::Scroll { dx, dy, .. }) if *dx > 0. && *dy < 0.
+        )));
+    }
+}
+
+#[test]
 fn wheel_both_axes_reverse_but_continuous_input_never_does() {
     for os in [Os::MacOS, Os::Windows] {
         let mut r = router(os);
