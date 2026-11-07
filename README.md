@@ -43,6 +43,9 @@ No. Oink uses a peer-to-peer design: the keyboard and mouse connected to any dev
 **Can I share trackpad gestures?**\
 Yes, but trackpads on Windows have not been tested.
 
+**Can I keep Mos running?**\
+The Mac input backend automatically adapts to Mos 4.2.1: forwarded mouse wheels follow Mos's direction policy, and received remote scrolls bypass repeated Mos processing. Local Mac scrolling retains Mos smoothing; wheels sent to Windows use Oink's existing delivery. No extra cross-system reversal switch is needed. Configure “Reverse mouse wheel” on the computer the mouse is connected to. See [Mos compatibility](docs/mos-compatibility.md) for scope and validation.
+
 **Does it support clipboard sharing and drag and drop across operating systems?**\
 Yes. The clipboard is synced across devices automatically, and you can drag text, images and files directly from one device to another — even straight into apps such as Chrome.
 

@@ -29,6 +29,7 @@ mod keyboard_diagnostics;
 use crate::mac_keymap as keymap;
 mod loop_timer;
 mod main_queue;
+mod mos;
 mod physical_buttons;
 mod physical_motion;
 mod resume_hotkey;
@@ -74,6 +75,7 @@ pub(crate) fn backend() -> Result<Box<dyn InputBackend>, InputError> {
     // 主线程读取 Caps 本机行为设置并订阅变化（TIS 只能在主线程调用）。
     capslock::init();
     session::init();
+    mos::init();
     // Prime the main-thread Carbon status cache before the tap needs stuck-key cleanup.
     let _ = system::secure_input_active();
     let safety = std::sync::Arc::new(crate::session_gate::SessionGate::default());

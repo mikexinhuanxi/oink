@@ -159,7 +159,7 @@ export const SECTIONS: SectionMeta[] = [
             { id: 'scrollInvert', get label() {
                     return tr('鼠标滚轮反转');
                 }, get desc() {
-                    return tr('在使用本机鼠标时，反转滚轮滚动方向');
+                    return tr('反转连接在这台电脑上的鼠标滚轮，影响本机及被控设备；请在连接鼠标的电脑上设置');
                 }, get keywords() { return tr('滚动 方向 自然滚动'); } },
             { id: 'forwardWheelByLines', get label() { return tr('按行转发滚轮事件'); }, get desc() { return tr('开启时，被控机一次滚动的行数与本机一致；关闭时，受被控机自身滚动设置影响。如部分应用滚动出现异常，请关闭此开关。'); }, get keywords() { return tr('滚动 方向 自然滚动'); } },
             { id: 'touchpadInject', get label() {
