@@ -51,3 +51,27 @@ Mos. Native regression tests cover axis compensation, local/continuous exclusion
 app-rule inheritance, active-tap admission, and marker ownership/payload integrity.
 Full acceptance also requires a modified Mac build paired with Windows, with Mos
 running, stopped, and its direction settings changed while Oink stays open.
+
+## Local hardware acceptance, 2026-11-07
+
+The reporter confirmed both Mac-connected mouse → Windows and Windows-connected
+mouse → Mac scrolling work with Mos running, using Mos 4.2.1 and the Mac test build
+`0.3.3-inhouse.101` on macOS 27.0.1. Local Mac smoothing remains Mos-owned.
+
+The test copy needed a fresh permission registration. Reusing the official bundle
+identifier from a mounted disk image left an enabled Settings row while the test
+backend still reported `NotGranted`. A fixed user-Applications copy with the
+independent identifier `com.mikexinhuanxi.oink.mos-test`, added explicitly through
+System Settings after user confirmation, reported Accessibility and Input
+Monitoring as `Granted`. Its mouse/keyboard indicators became active and Mos
+compatibility remained enabled. Do not re-sign or move a working test copy after
+granting access; future test builds may need fresh consent. On macOS 27 this
+privacy pane is named “Device Control and Data Access”.
+
+The first test package also mixed an official UI with a development backend,
+which the local IPC identity check correctly rejected. Build the UI, backend and
+CLI together with identical version, build and source fingerprint values, and
+verify packaged client/server IPC plus an actual native window before delivery.
+The build-101 replacement passed these checks. Neither this evidence nor the
+two-direction wheel test establishes exhaustive coverage of every Mos option or
+all permissions/audio/file-provider features.
