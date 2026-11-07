@@ -18,26 +18,6 @@ describe('target-specific key mapping edits',()=>{
 });
 
 describe('source mouse wheel direction',()=>{
-  it.each(['mac','win'] as const)('keeps cross-system reversal independent from local scrolling on %s',platform=>{
-    const local=platform==='mac'?'macos':'windows',remote=platform==='mac'?'windows':'macos';
-    const keyboard={preset:'none' as const,table:[]};
-    const current:InputTransform={macos:{reverse_wheel:false,keyboard},windows:{reverse_wheel:false,keyboard},overrides:[{target:'peer',reverse_wheel:false,keyboard}]};
-    for(const base of [false,true]){
-      const initial=editTransform(current,platform,DEFAULT_PREFS,base);
-      const result=editTransform(initial,platform,DEFAULT_PREFS,undefined,true);
-      expect(result[local].reverse_wheel).toBe(base);
-      expect(result[remote].reverse_wheel).toBe(!base);
-      expect(result[local].keyboard).toBe(initial[local].keyboard);
-      expect(result[remote].keyboard).toEqual(initial[remote].keyboard);
-      expect(result.overrides).toEqual([{target:'peer',reverse_wheel:null,keyboard}]);
-      const changedBase=editTransform(result,platform,DEFAULT_PREFS,!base);
-      expect(changedBase[local].reverse_wheel).toBe(!base);
-      expect(changedBase[remote].reverse_wheel).toBe(base);
-      const off=editTransform(changedBase,platform,DEFAULT_PREFS,undefined,false);
-      expect(off[local].reverse_wheel).toBe(!base);
-      expect(off[remote].reverse_wheel).toBe(!base);
-    }
-  });
   it.each(['mac','win'] as const)('uses one local switch for every target from %s',platform=>{
     const keyboard={preset:'none' as const,table:[]};
     const current:InputTransform={macos:{reverse_wheel:false,keyboard},windows:{reverse_wheel:false,keyboard},overrides:[{target:'same-os',reverse_wheel:false,keyboard},{target:'other-os',reverse_wheel:true,keyboard:null}]};

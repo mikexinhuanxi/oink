@@ -25,7 +25,7 @@ function readPresentation(): PresentationPreferences {
   try { const stored = JSON.parse(localStorage.getItem('oink:prefs') ?? '{}'); return { motion: ['auto','reduced','full'].includes(stored.motion) ? stored.motion : 'auto', hide_sponsor: stored.hide_sponsor === true, compact_layout: stored.compact_layout !== false }; }
   catch { return {motion:'auto',hide_sponsor:false,compact_layout:true}; }
 }
-export function editTransform(current: InputTransform, platform: 'mac'|'win', prefs: Prefs, reverseWheel?: boolean, crossSystemReverseWheel?: boolean): InputTransform {
+export function editTransform(current: InputTransform, platform: 'mac'|'win', prefs: Prefs, reverseWheel?: boolean): InputTransform {
   const target = platform === 'mac' ? 'windows' : 'macos';
   const previous=current[target].keyboard, map=prefs.keyCustom[platform];
   const entries=Object.entries(map.keys);
@@ -47,15 +47,11 @@ export function editTransform(current: InputTransform, platform: 'mac'|'win', pr
     caps_tap_hold:prefs.keyPreset==='custom'&&prefs.capsSplit&&map.capsLong!==undefined?{tap:keyCode(map.keys.caps??'caps'),hold:keyCode(map.capsLong)}:null};
   if(keyboard.caps_tap_hold)keyboard.table=table.filter(m=>m.from!==usage.caps);
   const result = {...current,[target]:{...current[target],keyboard}};
-  // Keep a separate cross-system offset: downstream mouse utilities can reverse
-  // local delivery after Oink has already forwarded the original wheel event.
-  // Store it in the existing target-OS fields, without a new wire preference.
-  if (reverseWheel !== undefined || crossSystemReverseWheel !== undefined) {
-    const local = platform === 'mac' ? 'macos' : 'windows';
-    const base = reverseWheel ?? current[local].reverse_wheel;
-    const offset = crossSystemReverseWheel ?? (current[local].reverse_wheel !== current[target].reverse_wheel);
-    result[local] = {...result[local],reverse_wheel:base};
-    result[target] = {...result[target],reverse_wheel:base !== offset};
+  // Wheel direction belongs to this source mouse, regardless of its target.
+  // Keyboard tables and per-device keyboard overrides remain independent.
+  if (reverseWheel !== undefined) {
+    result.macos = {...result.macos,reverse_wheel:reverseWheel};
+    result.windows = {...result.windows,reverse_wheel:reverseWheel};
     result.overrides = result.overrides.filter(o=>o.keyboard!==null).map(o=>({...o,reverse_wheel:null}));
   }
   return result;
@@ -113,7 +109,7 @@ export function usePreferences(): PrefsApi {
     if(!transform||busy.current)return;
     const target=platform==='mac'?'windows':'macos',keyboard=transform[target].keyboard;
     const decoded=readKeyboardMapping(keyboard,platform);
-    setPrefs(p=>{const next={...p,keyPreset:decoded.keyPreset,scrollInvert:transform[platform==='mac'?'macos':'windows'].reverse_wheel,crossSystemScrollInvert:transform.macos.reverse_wheel!==transform.windows.reverse_wheel,capsSplit:decoded.capsSplit,allowFnMapping:decoded.allowFnMapping,
+    setPrefs(p=>{const next={...p,keyPreset:decoded.keyPreset,scrollInvert:transform[platform==='mac'?'macos':'windows'].reverse_wheel,capsSplit:decoded.capsSplit,allowFnMapping:decoded.allowFnMapping,
       keyCustom:{...p.keyCustom,[platform]:decoded.map},keyCustomTouched:{...p.keyCustomTouched,[platform]:decoded.hasCustom}};
       committed.current=next;return next;});
   },[transform,platform,pending]);
@@ -156,9 +152,9 @@ export function usePreferences(): PrefsApi {
         if(!appliedLocal)throw new Error('unavailable');
         await agent.query('localPreferences',()=>call<LocalPreferences>('set_ui_preferences',{settings:{...(changed('notificationLevel')?{notification_level:next.notificationLevel}:{}),...(changed('showInMenuBar')?{show_status_icon:next.showInMenuBar}:{}),...(changed('confirmQuit')?{confirm_quit:next.confirmQuit}:{}),...(changed('language')?{ui_language:next.language}:{}),...(changed('logLevel')?{log_level:next.logLevel}:{}),...(changed('logMaxMb')?{log_max_mb:Number(next.logMaxMb)}:{})}}));
       }
-      if((['scrollInvert','crossSystemScrollInvert','keyPreset','keyCustom','capsSplit','allowFnMapping'] as const).some(changed)){
+      if((['scrollInvert','keyPreset','keyCustom','capsSplit','allowFnMapping'] as const).some(changed)){
         if(!transform||!current.overview)throw new Error('unavailable');
-        const edited=editTransform(transform,platform,next,changed('scrollInvert')?next.scrollInvert:undefined,changed('crossSystemScrollInvert')?next.crossSystemScrollInvert:undefined);await api.setInputTransform(current.overview.this_device.id,edited);setTransform(edited);
+        const edited=editTransform(transform,platform,next,changed('scrollInvert')?next.scrollInvert:undefined);await api.setInputTransform(current.overview.this_device.id,edited);setTransform(edited);
       }
       if(changed('crashReports')){
         if(!report)throw new Error('unavailable');
@@ -171,7 +167,7 @@ export function usePreferences(): PrefsApi {
   };
   return{prefs,pending,launchStatus:state.launch,canEdit: key => {
       if(['language','showInMenuBar','confirmQuit','notificationLevel','logLevel','logMaxMb','theme','accent'].includes(key))return local!==null;
-      if(['keymap','scrollInvert','crossSystemScrollInvert'].includes(key))return transform!==null;
+      if(['keymap','scrollInvert'].includes(key))return transform!==null;
       if(['pollLimit','pointerGain','keepAwake','pointerTrail','touchpadInject','nativeMultifinger','macScrollFeel','forwardWheelByLines','forwardInjectedInput','takeForegroundOnLeave','escStop'].includes(key)||key.startsWith('sc-'))return state.input!==null;
       if(key.startsWith('clip')||key==='removeDsStore')return state.clipboard!==null;
       if(['audioEncodingQuality','audioDevice','keepLocalPlayback'].includes(key))return state.audio!==null;

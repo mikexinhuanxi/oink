@@ -43,8 +43,8 @@ No. Oink uses a peer-to-peer design: the keyboard and mouse connected to any dev
 **Can I share trackpad gestures?**\
 Yes, but trackpads on Windows have not been tested.
 
-**Why does a mouse connected to my Mac scroll the opposite way on Windows?**\
-Configure the computer the mouse is connected to: the Windows “Reverse mouse wheel” setting only affects a mouse connected to Windows. Utilities such as Mos may adjust local scrolling after Oink forwards the original event. If local scrolling is correct but the direction differs across systems, enable “Extra wheel reversal across systems” in the Mac's input settings. This independently compensates the Windows direction for ordinary mouse wheels and leaves trackpads unchanged. If a Windows mouse cannot scroll on the Mac, first quit scroll utilities such as Mos and retest to distinguish receiver-side interception from an Oink injection problem.
+**Can I keep Mos running?**\
+The Mac input backend automatically adapts to Mos 4.2.1: forwarded mouse wheels follow Mos's direction policy, and received remote scrolls bypass repeated Mos processing. Local Mac scrolling retains Mos smoothing; wheels sent to Windows use Oink's existing delivery. No extra cross-system reversal switch is needed. Configure “Reverse mouse wheel” on the computer the mouse is connected to. See [Mos compatibility](docs/mos-compatibility.md) for scope and validation.
 
 **Does it support clipboard sharing and drag and drop across operating systems?**\
 Yes. The clipboard is synced across devices automatically, and you can drag text, images and files directly from one device to another — even straight into apps such as Chrome.

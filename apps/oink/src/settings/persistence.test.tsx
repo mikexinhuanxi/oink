@@ -19,32 +19,6 @@ beforeEach(()=>{
   mocks.call.mockResolvedValue(mocks.state.localPreferences);
 });
 afterEach(cleanup);
-it.each(['macos','windows'])('persists the cross-system wheel offset independently and reloads it on %s',async platform=>{
-  const remote=platform==='macos'?'windows':'macos',local=platform==='macos'?'macos':'windows';
-  const keyboard={preset:'none' as const,table:[]};
-  let stored:InputTransform={macos:{reverse_wheel:false,keyboard},windows:{reverse_wheel:false,keyboard},overrides:[]};
-  mocks.state={...mocks.state,boot:{platform},overview:{this_device:{id:'mouse-source'}}};
-  mocks.group.mockImplementation(async()=>({members:[{is_self:true,input_transform:structuredClone(stored)}]}));
-  mocks.transform.mockImplementation(async(_device,value)=>{stored=structuredClone(value);});
-  const mounted=renderHook(usePreferences);
-  await waitFor(()=>expect(mounted.result.current.canEdit('crossSystemScrollInvert')).toBe(true));
-  await act(async()=>mounted.result.current.set('crossSystemScrollInvert',true));
-  expect(mocks.transform.mock.calls[0][0]).toBe('mouse-source');
-  expect(stored[local].reverse_wheel).toBe(false);
-  expect(stored[remote].reverse_wheel).toBe(true);
-  mounted.unmount();
-  const reloaded=renderHook(usePreferences);
-  await waitFor(()=>expect(reloaded.result.current.prefs.crossSystemScrollInvert).toBe(true));
-  expect(reloaded.result.current.prefs.scrollInvert).toBe(false);
-  await act(async()=>reloaded.result.current.set('scrollInvert',true));
-  expect(stored[local].reverse_wheel).toBe(true);
-  expect(stored[remote].reverse_wheel).toBe(false);
-  expect(reloaded.result.current.prefs.crossSystemScrollInvert).toBe(true);
-  await act(async()=>reloaded.result.current.set('crossSystemScrollInvert',false));
-  expect(stored[local].reverse_wheel).toBe(true);
-  expect(stored[remote].reverse_wheel).toBe(true);
-  expect(localStorage.getItem('oink:prefs')).toBeNull();
-});
 it.each(['macos','windows'])('persists a separate custom map through preset changes and a fresh webview on %s',async platform=>{
   const mac=platform==='macos',target=mac?'windows':'macos';
   const keyboard:InputTransform['windows']['keyboard']={preset:'custom',table:[{from:0x700e0,to:0},{from:0x700e1,to:0x700e3},{from:0x700e2,to:0x700e0},{from:0x700e3,to:0x700e6},...(mac?[{from:0xff0003,to:0}]:[])],caps_tap_hold:{tap:0,hold:0}};

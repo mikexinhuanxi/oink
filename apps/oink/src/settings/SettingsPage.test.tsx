@@ -237,19 +237,12 @@ it.each([['zh-Hans','释放磁盘空间。仍在原设备上的文件可以再�
  expect(container.querySelector('[data-item="receivedCleanup"]')?.textContent).toContain(copy);
 });
 
-it.each(['mac','win'] as const)('groups independent wheel direction controls above wheel-lines on %s', platform => {
+it.each(['mac','win'] as const)('places the enabled wheel-lines switch directly below reverse-wheel on %s', platform => {
   setLanguage('zh-Hans');
-  const set=vi.spyOn(prefs,'set');
   const {container}=render(view(platform));
   const input=container.querySelector<HTMLElement>('[data-section="input"]')!;
   const ids=Array.from(input.querySelectorAll<HTMLElement>('[data-item]'),n=>n.dataset.item);
-  expect(ids[ids.indexOf('scrollInvert')+1]).toBe('crossSystemScrollInvert');
-  expect(ids[ids.indexOf('crossSystemScrollInvert')+1]).toBe('forwardWheelByLines');
-  const direction=input.querySelector<HTMLElement>('[data-item="crossSystemScrollInvert"]')!;
-  const directionToggle=within(direction).getByRole('switch',{name:'跨系统滚轮额外反转'}) as HTMLInputElement;
-  expect(directionToggle.checked).toBe(false);
-  fireEvent.click(directionToggle);
-  expect(set).toHaveBeenCalledWith('crossSystemScrollInvert',true);
+  expect(ids[ids.indexOf('scrollInvert')+1]).toBe('forwardWheelByLines');
   const row=input.querySelector<HTMLElement>('[data-item="forwardWheelByLines"]')!;
   expect(row.querySelector('.ok-row__desc')?.textContent).toBe('开启时，被控机一次滚动的行数与本机一致；关闭时，受被控机自身滚动设置影响。如部分应用滚动出现异常，请关闭此开关。');
   const toggle=within(row).getByRole('switch',{name:'按行转发滚轮事件'}) as HTMLInputElement;

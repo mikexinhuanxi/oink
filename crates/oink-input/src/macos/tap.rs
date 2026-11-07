@@ -1848,7 +1848,7 @@ fn owner_modifier_flags(
 
 fn marked_own_event(ev: &CGEvent) -> bool {
     let tag = CGEvent::integer_value_field(Some(ev), CGEventField::EventSourceUserData);
-    tag == MAGIC || cursor::owner::event_generation(tag).is_some()
+    tag == MAGIC || cursor::owner::event_generation(tag).is_some() || super::mos::own_scroll(ev)
 }
 
 fn physical_keyboard_event(ty: CGEventType, ev: &CGEvent) -> bool {
@@ -2004,6 +2004,9 @@ unsafe extern "C-unwind" fn callback(
         CGEvent::set_flags(Some(ev), transformed_injected_flags(ev, &mapping, &injected));
         trace_gesture_delivery(ty, ev, "injected_echo_pass", None, s.remote.load(Ordering::Acquire));
         s.motion.acknowledge_cg(s.motion_generation, ty, ev);
+        // ACK with Oink's original tag first. Mos runs later at AnnotatedSession
+        // and understands its own processed-scroll marker as pass-through.
+        super::mos::prepare_received_scroll(ev);
         if is_motion(ty) || is_mouse_button(ty) {
             account_cursor_placement(s, ev, crate::pointer_transition::PlacementKind::Tagged, None);
         }
@@ -2326,7 +2329,14 @@ unsafe extern "C-unwind" fn callback(
         // Carry only diagnostic context through the synchronous callback. This
         // does not alter the routed event or the backend's recovery ordering.
         let metadata = key_capture_metadata(ty, ev, t.release_first.is_some());
-        let d = crate::diagnostics::with_capture(metadata, || call_handler(s, captured));
+        // Mos runs later, at the Annotated tap. Keep the native local event
+        // intact; only the remote copy needs its source-side direction policy.
+        let forwarded = super::mos::forwarded_scroll(
+            captured,
+            remote,
+            CGEvent::integer_value_field(Some(ev), CGEventField::EventTargetUnixProcessID) as i32,
+        );
+        let d = crate::diagnostics::with_capture(metadata, || call_handler(s, &forwarded));
         if let (InputEvent::Key { pressed: true, .. }, Some(k)) = (&captured.event, t.disp_key) {
             KEY_DISPOSITION.with(|m| m.borrow_mut().insert(k, d));
         }
