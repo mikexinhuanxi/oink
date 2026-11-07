@@ -10,6 +10,11 @@ repository.workspace = true
 default-run = "oink"
 autobins = false
 
+[[test]]
+name = "macos_window_controls"
+path = "tests/macos_window_controls.rs"
+harness = false
+
 [lib]
 name = "oink_ui"
 path = "src/lib.rs"

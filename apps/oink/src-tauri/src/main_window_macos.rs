@@ -6,15 +6,60 @@ use std::{
 };
 
 use block2::RcBlock;
-use objc2::{MainThreadMarker, rc::Retained, runtime::AnyObject};
+use objc2::{
+    MainThreadMarker, Message,
+    rc::Retained,
+    runtime::{AnyObject, ProtocolObject},
+};
 use objc2_app_kit::{
     NSCursor, NSEvent, NSEventMask, NSEventType, NSView, NSWindow, NSWindowButton, NSWindowCollectionBehavior,
     NSWindowStyleMask,
 };
-use objc2_foundation::{NSPoint, NSRect};
+use objc2_foundation::{NSNotification, NSNotificationCenter, NSObjectProtocol, NSPoint, NSRect, NSString};
 use tauri::WebviewWindow;
 
 thread_local! { static MONITORS: RefCell<Vec<Retained<AnyObject>>> = const { RefCell::new(Vec::new()) }; }
+thread_local! { static TITLEBAR: RefCell<Option<TrafficLightObserver>> = const { RefCell::new(None) }; }
+
+pub(super) struct TrafficLightObserver {
+    token: Retained<ProtocolObject<dyn NSObjectProtocol>>,
+}
+
+impl Drop for TrafficLightObserver {
+    fn drop(&mut self) {
+        // SAFETY: the observer is removed on the same AppKit thread on which
+        // it was installed. Removing it releases its block and retained window.
+        unsafe { NSNotificationCenter::defaultCenter().removeObserver(self.token.as_ref()) };
+    }
+}
+
+pub(super) fn observe_traffic_lights(native: &NSWindow) -> TrafficLightObserver {
+    let _mtm = MainThreadMarker::new().expect("titlebar observer on AppKit thread");
+    let window = native.retain();
+    let restoring = Cell::new(false);
+    let block = RcBlock::new(move |_: NonNull<NSNotification>| {
+        // A frame change can itself cause an update. Only write changed frames,
+        // and guard synchronous reentry so this never becomes a layout loop.
+        if !restoring.replace(true) {
+            restore_traffic_lights(&window);
+            restoring.set(false);
+        }
+    });
+    // A transparent Wry parent need not draw again when AppKit resets its
+    // titlebar. Follow the native update instead of relying on WebView resize
+    // or focus events. NSWindow posts this notification on its AppKit thread;
+    // object filtering confines it to this main window. No polling or global
+    // observer is needed, and fullscreen keeps its system-owned controls.
+    let token = unsafe {
+        NSNotificationCenter::defaultCenter().addObserverForName_object_queue_usingBlock(
+            Some(&NSString::from_str("NSWindowDidUpdateNotification")),
+            Some(native),
+            None,
+            &block,
+        )
+    };
+    TrafficLightObserver { token }
+}
 
 #[derive(Clone, Copy)]
 struct Resize {
@@ -134,6 +179,7 @@ pub fn prepare(window: &WebviewWindow) -> tauri::Result<()> {
     window.set_resizable(false)?;
     native.setCollectionBehavior(native.collectionBehavior() | NSWindowCollectionBehavior::FullScreenPrimary);
     window.set_maximizable(true)?;
+    TITLEBAR.with(|slot| *slot.borrow_mut() = Some(observe_traffic_lights(&native)));
     restore_traffic_lights(&native);
     native.setAcceptsMouseMovedEvents(true);
     let captured = Rc::new(Cell::new(false));
@@ -251,6 +297,7 @@ pub fn prepare(window: &WebviewWindow) -> tauri::Result<()> {
 }
 
 pub fn closed() {
+    TITLEBAR.with(|slot| slot.borrow_mut().take());
     MONITORS.with(|slot| {
         for monitor in slot.borrow_mut().drain(..) {
             // SAFETY: token from this thread's AppKit local monitor registration.

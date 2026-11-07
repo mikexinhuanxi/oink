@@ -21,3 +21,24 @@ window again. Fullscreen/minimize/resize coverage on other macOS versions remain
 unverified. The already-authorized build-101 installation was not overwritten.
 
 This test-package window fix is kept on a separate branch from the Mos contribution.
+
+## Build 102 recurrence and native update regression
+
+The reporter subsequently observed the controls outside the shell again in the
+installed build 102. Its initial acceptance did not cover all later native layout
+updates. Restoring during reveal and WebView alignment queries was insufficient.
+
+The main window now also observes its own `NSWindowDidUpdateNotification` on the
+AppKit thread. After the native update it reapplies the same official inset when
+necessary. It performs no polling, ignores fullscreen through the existing guard,
+and uses an idempotent frame update plus a synchronous reentry guard. Closing the
+main window removes the observer and releases its retained window.
+
+`cargo test -p oink-ui --test macos_window_controls` runs real AppKit on the main
+thread without showing windows or posting input. It explicitly reproduces the
+measured default layout, verifies that a one-time restoration leaves it outside,
+and then verifies recovery over 20 reset/update cycles, repeated-update stability,
+window isolation, and observer removal. Hidden AppKit windows do not reset on every
+style/title change, so the test deliberately sets the measured stale frames before
+calling the real native update; it does not claim those operations always trigger
+the reset on every macOS version.
