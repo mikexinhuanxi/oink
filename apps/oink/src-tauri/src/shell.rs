@@ -485,6 +485,12 @@ fn show_normal(_app: &AppHandle, window: &tauri::WebviewWindow) -> tauri::Result
     }
     #[cfg(not(windows))]
     focus_window(window)?;
+    #[cfg(target_os = "macos")]
+    if window.label() == "main" {
+        // AppKit may reset the inset while revealing/focusing the window.
+        let native = unsafe { &*window.ns_window()?.cast::<objc2_app_kit::NSWindow>() };
+        crate::main_window_macos::restore_traffic_lights(native);
+    }
     tracing::info!(view = window.label(), "ready product window shown");
     crate::live_views::refresh(_app);
     Ok(())

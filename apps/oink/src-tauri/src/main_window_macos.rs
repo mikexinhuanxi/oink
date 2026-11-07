@@ -28,6 +28,47 @@ struct Resize {
 const SHADOW_GUTTER: f64 = 24.0;
 const RESIZE_OVERHANG: f64 = 4.0;
 
+/// Restore the same inset configured in shell.rs. AppKit can reset the native
+/// titlebar after the transparent WebView has painted, without another Wry draw.
+pub fn restore_traffic_lights(native: &NSWindow) {
+    if native.styleMask().contains(NSWindowStyleMask::FullScreen) {
+        return;
+    }
+    let Some(close) = native.standardWindowButton(NSWindowButton::CloseButton) else {
+        return;
+    };
+    let Some(minimize) = native.standardWindowButton(NSWindowButton::MiniaturizeButton) else {
+        return;
+    };
+    // SAFETY: these are live AppKit views on their owning thread. This is the
+    // same titlebar hierarchy used by Wry's existing traffic_light_position.
+    let Some(container) = (unsafe { close.superview().and_then(|view| view.superview()) }) else {
+        return;
+    };
+    let spacing = minimize.frame().origin.x - close.frame().origin.x;
+    let mut frame = container.frame();
+    frame.size.height = close.frame().size.height + 24.0 + SHADOW_GUTTER;
+    frame.origin.y = native.frame().size.height - frame.size.height;
+    if container.frame() != frame {
+        container.setFrame(frame);
+    }
+    for (index, button) in [
+        Some(close),
+        Some(minimize),
+        native.standardWindowButton(NSWindowButton::ZoomButton),
+    ]
+    .into_iter()
+    .flatten()
+    .enumerate()
+    {
+        let mut origin = button.frame().origin;
+        origin.x = 18.0 + SHADOW_GUTTER + index as f64 * spacing;
+        if button.frame().origin != origin {
+            button.setFrameOrigin(origin);
+        }
+    }
+}
+
 fn accepts_pointer(frame: NSRect, point: NSPoint, fullscreen: bool) -> bool {
     let inset = if fullscreen {
         0.0
@@ -93,6 +134,7 @@ pub fn prepare(window: &WebviewWindow) -> tauri::Result<()> {
     window.set_resizable(false)?;
     native.setCollectionBehavior(native.collectionBehavior() | NSWindowCollectionBehavior::FullScreenPrimary);
     window.set_maximizable(true)?;
+    restore_traffic_lights(&native);
     native.setAcceptsMouseMovedEvents(true);
     let captured = Rc::new(Cell::new(false));
     sync_mouse_region(&native, &captured);
@@ -222,6 +264,7 @@ pub fn traffic_light_center(native: &NSWindow, webview: &NSView) -> Option<f64> 
     if native.styleMask().contains(NSWindowStyleMask::FullScreen) {
         return None;
     }
+    restore_traffic_lights(native);
     let button = native.standardWindowButton(NSWindowButton::CloseButton)?;
     let rect = button.convertRect_toView(button.bounds(), Some(webview));
     let center = rect.origin.y + rect.size.height / 2.0;
